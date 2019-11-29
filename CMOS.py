@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # coding: utf-8
-
 """CMOS MT9V011 Cluster Detection"""
 
 #Import libraries
@@ -23,11 +22,14 @@ DATADIR = sys.argv[1]
 PEDS_VALUE = np.zeros(307200, dtype="int")
 PEDS_EVTS = np.zeros(307200, dtype="int")
 PEDS = np.zeros(307200, dtype="int")
-#CLUSTERS = []
 
-CLUSTERS = pd.DataFrame({"Max":[], 
-                    "Sum":[],
-                    "Size":[]}) 
+CLUSTERS = pd.DataFrame({
+    "Max": [],
+    "Sum": [],
+    "Size": [],
+    "row": [],
+    "column": []
+})
 
 #Calculate or (load) Pedestals
 if not os.path.isfile(DATADIR + "pedestals.npy"):
@@ -61,17 +63,24 @@ for _filename in tqdm(sorted(fnmatch.filter(os.listdir(DATADIR), '*.txt'))):
 
     frame = frame.reshape(480, 640)
     _temp = interp(frame, [0, 1024], [0, 1])
-    
+
     #Find "blobs"
     blobs_log = blob_log(_temp, max_sigma=50, num_sigma=50, threshold=.05)
     blobs_log[:, 2] = blobs_log[:, 2] * 2 * sqrt(2)
-    
+
     for _x, _y, _r in blobs_log:
         _min_y = (_y - _r).astype(int)
         _max_y = (_y + _r).astype(int)
         _min_x = (_x - _r).astype(int)
         _max_x = (_x + _r).astype(int)
         _subim = frame[_min_x:_max_x, _min_y:_max_y]
-        CLUSTERS = CLUSTERS.append({'Max': np.max(_subim) , 'Sum' : np.sum(_subim), 'Size' : _subim.size}, ignore_index=True)
-    
+        CLUSTERS = CLUSTERS.append(
+            {
+                'Max': np.max(_subim),
+                'Sum': np.sum(_subim),
+                'Size': _subim.size,
+                'row': _x,
+                'column': _y
+            },
+            ignore_index=True)
     CLUSTERS.to_feather(DATADIR + "clusters.feather")
